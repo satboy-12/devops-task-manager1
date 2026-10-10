@@ -2,5 +2,7 @@
   "name": "Nexora AI – Intelligent DevOps Workspace",
   "description": "A high-performance DevOps task management workspace with local rule-based smart productivity insights, Docker containerization, and CI/CD pipelines.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

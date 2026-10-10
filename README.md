@@ -156,35 +156,94 @@ npm run preview
 
 The repository includes a production-grade multi-stage `Dockerfile` paired with an optimized `nginx.conf`:
 
-- **Stage 1 (Builder)**: Uses `node:22-alpine` to cleanly install dependencies and compile Vite assets.
-- **Stage 2 (Runner)**: Copies the built artifacts into `nginx:alpine` and configures client-side SPA route fallbacks (`try_files $uri $uri/ /index.html;`).
+- **Stage 1 (Builder)**: Uses `node:22-alpine` to cleanly install dependencies using `package-lock.json` and compile Vite production assets into `/app/dist`.
+- **Stage 2 (Runner)**: Copies the built artifacts into `nginx:alpine` and configures client-side SPA route fallbacks (`try_files $uri $uri/ /index.html;`) and security headers.
+- **Port Mapping**: The container listens internally on **Port 80** and is mapped to host **Port 8080** (`-p 8080:80`).
 
-### 1. Build the Docker Image
-```bash
+---
+
+### A. Windows Docker Desktop Instructions
+
+#### 1. Prerequisites on Windows
+1. Install [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) (WSL 2 backend recommended).
+2. Start Docker Desktop and verify the status indicator in the bottom-left shows **Engine running** (green).
+
+#### 2. Project Export & Setup on Windows
+1. Download or export the project files from Google AI Studio into a folder on your Windows machine (e.g., `C:\Projects\nexora-ai-devops-manager`).
+2. Open **PowerShell**, **Windows Terminal**, or **Command Prompt (CMD)** as Administrator or standard user.
+3. Navigate into the project root directory where `Dockerfile` and `nginx.conf` reside:
+   ```powershell
+   cd C:\Projects\nexora-ai-devops-manager
+   ```
+
+#### 3. Step-by-Step Command Execution
+
+**Step 1: Build the Docker Image**
+```powershell
 docker build -t nexora-ai-devops-manager:latest .
 ```
+*(Docker will run the multi-stage build: downloading Node 22 Alpine, installing dependencies via npm ci, running `npm run build`, and packaging the output into Nginx Alpine).*
 
-### 2. Run the Docker Container
-```bash
+**Step 2: Run the Container**
+```powershell
 docker run -d -p 8080:80 --name nexora-app nexora-ai-devops-manager:latest
 ```
+- `-d`: Runs the container in detached (background) mode.
+- `-p 8080:80`: Maps host port `8080` to container port `80`.
+- `--name nexora-app`: Assigns a friendly name for easy management.
 
-### 3. Verify Container Status & Logs
-```bash
-# Check if container is running
+**Step 3: Verify Container Status & Access the Web App**
+```powershell
 docker ps
+```
+Open your browser (Edge, Chrome, or Firefox) and navigate to:
+```
+http://localhost:8080
+```
+You should see the Nexora AI DevOps Workspace dashboard running smoothly with all routes and local state active.
 
-# Inspect logs
+**Step 4: View Container Logs**
+```powershell
+# View recent logs
 docker logs nexora-app
+
+# Or stream logs live (Ctrl+C to exit)
+docker logs -f nexora-app
 ```
 
-Open `http://localhost:8080` in your browser.
-
-### 4. Stop and Remove Container
-```bash
+**Step 5: Stop the Container**
+```powershell
 docker stop nexora-app
+```
+
+**Step 6: Remove the Container**
+```powershell
 docker rm nexora-app
 ```
+
+---
+
+### B. Managing via Docker Desktop GUI (Windows)
+
+If you prefer using the graphical interface:
+1. Open the **Docker Desktop** window.
+2. Click the **Containers** tab on the left sidebar: you will see `nexora-app` running with status `Port 8080:80`.
+3. Click on the container name to view:
+   - **Logs tab**: Live Nginx access logs and health checks.
+   - **Inspect tab**: Environment variables, port bindings, and container IP.
+   - **Terminal (Exec) tab**: Interactive shell inside the running Alpine container.
+4. Use the **Stop (Square)** and **Delete (Trash can)** buttons in the top-right corner to stop and remove the container.
+
+---
+
+### C. Docker Troubleshooting on Windows
+
+| Issue | Cause | Resolution |
+| :--- | :--- | :--- |
+| `docker: error during connect: This error may indicate that the docker daemon is not running` | Docker Desktop is not started | Launch Docker Desktop from the Start menu and wait until the whale icon shows "Engine running". |
+| `Bind for 0.0.0.0:8080 failed: port is already allocated` | Another application is using port 8080 | Map to an alternate port, e.g.: `docker run -d -p 8085:80 --name nexora-app nexora-ai-devops-manager:latest` and open `http://localhost:8085`. |
+| `COPY failed: file not found in build context: package-lock.json` | Lockfile not included in directory | Ensure `package.json` and `package-lock.json` are in the folder. Our Dockerfile handles fallback automatically. |
+| SPA subpages return 404 | Nginx not configured for client routing | Handled: `nginx.conf` includes `try_files $uri $uri/ /index.html;`. |
 
 ---
 

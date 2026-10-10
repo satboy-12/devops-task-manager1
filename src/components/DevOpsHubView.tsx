@@ -21,8 +21,8 @@ export function DevOpsHubView() {
   const dockerfileContent = `# Stage 1: Build React SPA
 FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+COPY package.json package-lock.json* ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY . .
 RUN npm run build
 
@@ -31,17 +31,25 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \\
+  CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
 CMD ["nginx", "-g", "daemon off;"]`;
 
-  const dockerCommands = `# Build the production Docker image
+  const dockerCommands = `# 1. Build the production Docker image
 docker build -t nexora-ai-devops-manager:latest .
 
-# Run container on port 8080
+# 2. Run container in background (maps host port 8080 to container port 80)
 docker run -d -p 8080:80 --name nexora-app nexora-ai-devops-manager:latest
 
-# Verify status & logs
+# 3. View container status & live logs
 docker ps
-docker logs nexora-app`;
+docker logs -f nexora-app
+
+# 4. Stop the running container
+docker stop nexora-app
+
+# 5. Remove the stopped container
+docker rm nexora-app`;
 
   const cicdWorkflow = `name: Nexora AI CI/CD Pipeline
 

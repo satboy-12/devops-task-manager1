@@ -1,43 +1,44 @@
 # ========================================================
 # Nexora AI – Intelligent DevOps Workspace
-# Multi-Stage Production Dockerfile
+# Production Multi-Stage Dockerfile
 # ========================================================
 
-# Stage 1: Build React SPA
+# Stage 1: Build the React / Vite SPA production assets
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
 # Copy dependency manifests
-COPY package*.json ./
+COPY package.json package-lock.json* ./
 
-# Clean reproducible install of dependencies
-RUN npm ci
+# Install dependencies deterministically
+# Uses npm ci if package-lock.json exists, otherwise falls back to npm install
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
-# Copy full application source code
+# Copy application source code
 COPY . .
 
-# Build production bundle
+# Build production bundle (outputs to /app/dist)
 RUN npm run build
 
-# Stage 2: Production Nginx Server
+# Stage 2: Serve static production assets with Nginx Alpine
 FROM nginx:alpine
 
-# Remove default nginx static assets
+# Remove default static nginx files
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copy compiled SPA bundle from Stage 1
+# Copy compiled SPA bundle from Stage 1 builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy custom Nginx configuration
+# Copy custom Nginx configuration supporting React SPA routing
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose standard HTTP port
+# Expose HTTP port 80 internally within the container
 EXPOSE 80
 
-# Health check to verify web server status
+# Health check to verify the web server is responding
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
 
-# Start Nginx in foreground
+# Launch Nginx in the foreground
 CMD ["nginx", "-g", "daemon off;"]
